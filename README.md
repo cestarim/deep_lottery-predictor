@@ -20,13 +20,16 @@ Proyecto privado de analítica experimental para EuroMillions y Bonoloto. El dis
 - Modelos a comparar: LSTM, GRU, Transformer y CNN; opciones configurables de dropout y early stopping.
 - Evaluación mediante backtesting temporal y comparación con una referencia aleatoria.
 
-## Próximos pasos
+## Próximos pasos para retomar
 
-1. Confirmar formato y fuente de los CSV de EuroMillions y Bonoloto.
-2. Implementar backend FastAPI, validación de datos y endpoints.
-3. Implementar preprocesamiento y baseline estadístico antes de entrenar redes profundas.
-4. Añadir modelos y backtesting sin mezclar datos futuros en el entrenamiento.
-5. Conectar el dashboard y documentar cómo ejecutar y probar el proyecto.
+1. Preparar los CSV reales de EuroMillions y Bonoloto.
+2. Confirmar los nombres de columnas y rangos.
+3. Implementar la API.
+4. Montar el dashboard.
+5. Añadir los modelos y el backtesting.
+6. Probar con datos reales y ajustar.
+
+Al retomar, ayudar a corregir errores y completar los archivos necesarios manteniendo la continuidad del proyecto. El siguiente bloque de trabajo puede incluir la estructura exacta de la API, endpoints de carga y predicción, preprocesado para secuencias y HTML conectado al backend, con el objetivo de dejarlo operativo.
 
 ## Referencia
 
