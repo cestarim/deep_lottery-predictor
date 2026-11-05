@@ -47,7 +47,8 @@ button {
   cursor: pointer;
 }
 
-.results {
+.results,
+.chart-section {
   background: #111827;
   border: 1px solid #334155;
   border-radius: 12px;
@@ -55,9 +56,53 @@ button {
   margin-bottom: 24px;
 }
 
-.chart-section {
-  background: #111827;
+.badge-list,
+.number-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.badge,
+.number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  height: 42px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-weight: 700;
+  background: #1e293b;
+  border: 1px solid #475569;
+}
+
+.badge {
+  background: #0ea5e9;
+  color: #082f49;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+}
+
+.metric {
+  background: rgba(30, 41, 59, 0.8);
   border: 1px solid #334155;
-  border-radius: 12px;
-  padding: 18px;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.metric p {
+  margin: 0;
+  color: #94a3b8;
+}
+
+.metric strong {
+  display: block;
+  font-size: 1.3rem;
+  margin-top: 8px;
 }
