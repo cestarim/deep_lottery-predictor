@@ -10,26 +10,84 @@ GAME_FILES = {
     "euromillions": DATA_DIR / "euromillions_sample.csv",
     "bonoloto": DATA_DIR / "bonoloto_sample.csv",
 }
+MAIN_COLUMNS = {
+    "euromillions": [f"main_{i}" for i in range(1, 6)],
+    "bonoloto": [f"main_{i}" for i in range(1, 7)],
+}
+SECONDARY_COLUMNS = {
+    "euromillions": ["star_1", "star_2"],
+    "bonoloto": ["complementary", "reintegro"],
+}
+RANGES = {
+    "euromillions": {"main": (1, 50), "star": (1, 12)},
+    "bonoloto": {"main": (1, 49), "complementary": (1, 49), "reintegro": (0, 9)},
+}
+
+
+class DataValidationError(ValueError):
+    """Raised when a draw CSV is missing fields or contains invalid values."""
 
 
 def load_game(game: str) -> pd.DataFrame:
     if game not in GAME_FILES:
         raise ValueError(f"Juego no soportado: {game}")
 
-    file_path = GAME_FILES[game]
-    if not file_path.exists():
-        raise FileNotFoundError(f"No se encontró el CSV para {game}: {file_path}")
+    path = GAME_FILES[game]
+    if not path.is_file():
+        raise FileNotFoundError(f"No existe el archivo de datos: {path}")
 
-    df = pd.read_csv(file_path, parse_dates=["date"])
-    df = df.sort_values("date").reset_index(drop=True)
-    return df
+    try:
+        df = pd.read_csv(path)
+    except (OSError, pd.errors.ParserError, UnicodeDecodeError) as exc:
+        raise DataValidationError(f"No se pudo leer el CSV de {game}: {exc}") from exc
+
+    required = ["date", *MAIN_COLUMNS[game], *SECONDARY_COLUMNS[game]]
+    missing = [column for column in required if column not in df.columns]
+    if missing:
+        raise DataValidationError(f"Faltan columnas en {path.name}: {', '.join(missing)}")
+    if df.empty:
+        raise DataValidationError(f"El archivo {path.name} no contiene sorteos.")
+
+    df = df[required].copy()
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    if df["date"].isna().any():
+        raise DataValidationError("La columna date debe contener fechas válidas (YYYY-MM-DD).")
+
+    for column in [*MAIN_COLUMNS[game], *SECONDARY_COLUMNS[game]]:
+        numeric = pd.to_numeric(df[column], errors="coerce")
+        if numeric.isna().any() or (numeric % 1 != 0).any():
+            raise DataValidationError(f"La columna {column} debe contener números enteros.")
+        df[column] = numeric.astype(int)
+
+    main_low, main_high = RANGES[game]["main"]
+    for index, row in df.iterrows():
+        main = [int(row[column]) for column in MAIN_COLUMNS[game]]
+        if len(set(main)) != len(main):
+            raise DataValidationError(f"Sorteo de la fila {index + 2}: hay números principales repetidos.")
+        if any(number < main_low or number > main_high for number in main):
+            raise DataValidationError(f"Sorteo de la fila {index + 2}: números principales fuera de rango.")
+
+        if game == "euromillions":
+            stars = [int(row[column]) for column in SECONDARY_COLUMNS[game]]
+            low, high = RANGES[game]["star"]
+            if len(set(stars)) != 2 or any(number < low or number > high for number in stars):
+                raise DataValidationError(f"Sorteo de la fila {index + 2}: estrellas inválidas.")
+        else:
+            complementary = int(row["complementary"])
+            reintegro = int(row["reintegro"])
+            if not main_low <= complementary <= main_high or complementary in main:
+                raise DataValidationError(f"Sorteo de la fila {index + 2}: complementario inválido.")
+            if not RANGES[game]["reintegro"][0] <= reintegro <= RANGES[game]["reintegro"][1]:
+                raise DataValidationError(f"Sorteo de la fila {index + 2}: reintegro fuera de rango.")
+
+    return df.sort_values("date").reset_index(drop=True)
 
 
-def get_game_summary(game: str) -> dict:
-    df = load_game(game)
+def get_game_summary(game: str, df: pd.DataFrame | None = None) -> dict:
+    draws = df if df is not None else load_game(game)
     return {
         "game": game,
-        "draw_count": len(df),
-        "latest_date": df["date"].max().strftime("%Y-%m-%d"),
-        "columns": list(df.columns),
+        "draw_count": int(len(draws)),
+        "latest_date": draws["date"].max().strftime("%Y-%m-%d"),
+        "columns": list(draws.columns),
     }
