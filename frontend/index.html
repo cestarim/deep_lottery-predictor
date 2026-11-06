@@ -19,6 +19,10 @@
         <option value="euromillions">EuroMillions</option>
         <option value="bonoloto">Bonoloto</option>
       </select>
+
+      <label for="model">Modelo</label>
+      <select id="model"></select>
+
       <button id="load-data" type="button">Cargar datos</button>
       <span id="status" role="status" aria-live="polite"></span>
     </section>
@@ -26,6 +30,7 @@
     <section class="results"><h2>Frecuencias históricas</h2><div id="prediction"></div></section>
     <section class="results"><h2>Último sorteo de muestra</h2><div id="latest-draw"></div></section>
     <section class="results"><h2>Backtesting temporal</h2><div id="backtest"></div></section>
+    <section class="results"><h2>Modelo activo</h2><div id="model-info"></div></section>
   </main>
   <script src="/static/js/app.js" defer></script>
 </body>

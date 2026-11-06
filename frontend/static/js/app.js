@@ -1,9 +1,11 @@
 const gameSelect = document.getElementById('game');
+const modelSelect = document.getElementById('model');
 const loadButton = document.getElementById('load-data');
 const summaryBlock = document.getElementById('summary');
 const predictionBlock = document.getElementById('prediction');
 const latestBlock = document.getElementById('latest-draw');
 const backtestBlock = document.getElementById('backtest');
+const modelInfoBlock = document.getElementById('model-info');
 const statusBlock = document.getElementById('status');
 
 function clear(element) { element.replaceChildren(); }
@@ -26,6 +28,20 @@ function renderMetric(parent, label, value) {
   addText(card, 'p', label);
   addText(card, 'strong', value);
   parent.append(card);
+}
+
+async function loadModels() {
+  try {
+    const response = await fetch('/api/models');
+    const payload = await response.json();
+    const entries = Object.entries(payload.models || {});
+    modelSelect.innerHTML = entries
+      .map(([key, value]) => `<option value="${key}">${value.display_name}</option>`)
+      .join('');
+    modelSelect.value = 'frequency_baseline';
+  } catch (error) {
+    statusBlock.textContent = 'No se pudo cargar la lista de modelos.';
+  }
 }
 
 async function loadGameData() {
@@ -79,10 +95,15 @@ async function loadGameData() {
     }
     backtestBlock.append(grid);
     addText(backtestBlock, 'p', backtest.interpretation, 'notice');
+
+    clear(modelInfoBlock);
+    const selectedModelName = modelSelect.value;
+    const selectedModel = payload.models?.[selectedModelName] || selectedModelName;
+    addText(modelInfoBlock, 'p', selectedModel ? `Modelo activo: ${selectedModel}` : 'Modelo activo: frequency_baseline');
     statusBlock.textContent = 'Datos sintéticos de demostración cargados.';
   } catch (error) {
     statusBlock.textContent = error.message;
-    [summaryBlock, predictionBlock, latestBlock, backtestBlock].forEach(clear);
+    [summaryBlock, predictionBlock, latestBlock, backtestBlock, modelInfoBlock].forEach(clear);
   } finally {
     loadButton.disabled = false;
   }
@@ -90,4 +111,9 @@ async function loadGameData() {
 
 loadButton.addEventListener('click', loadGameData);
 gameSelect.addEventListener('change', loadGameData);
+modelSelect.addEventListener('change', () => {
+  const modelName = modelSelect.value;
+  statusBlock.textContent = `Modelo seleccionado: ${modelName}`;
+});
+loadModels();
 loadGameData();
