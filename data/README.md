@@ -1,1 +1,1 @@
-# Synthetic sample draws for local app and test usage only. Not official results.
+# Synthetic sample draws for local app and tests only. They are not official lottery results.

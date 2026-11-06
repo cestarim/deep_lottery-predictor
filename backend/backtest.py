@@ -13,11 +13,7 @@ def run_frequency_backtest(
     min_train: int = 3,
     max_holdout: int = 100,
 ) -> dict:
-    """Walk forward over recent draws and compare to random expected hits.
-
-    This is descriptive historical evaluation, not evidence that the baseline
-    can predict future independent random draws.
-    """
+    """Walk forward and compare historical hit rates with random expectations."""
     if game not in MAIN_COLUMNS:
         raise ValueError(f"Juego no soportado: {game}")
     if min_train < 1 or max_holdout < 1:
@@ -27,30 +23,28 @@ def run_frequency_backtest(
 
     holdout = min(max_holdout, len(draws) - min_train)
     start = len(draws) - holdout
-    main_columns = MAIN_COLUMNS[game]
-    main_low, main_high = RANGES[game]["main"]
-    main_count = len(main_columns)
-    main_population = main_high - main_low + 1
-    main_random_expected = main_count * main_count / main_population
+    columns = MAIN_COLUMNS[game]
+    low, high = RANGES[game]["main"]
+    count = len(columns)
+    population = high - low + 1
+    main_expected = count * count / population
     main_hits: list[int] = []
     secondary_hits: list[int] = []
     reintegro_hits: list[int] = []
 
     if game == "euromillions":
-        secondary_low, secondary_high = RANGES[game]["star"]
-        secondary_random_expected = 2 * 2 / (secondary_high - secondary_low + 1)
+        low, high = RANGES[game]["star"]
+        secondary_expected = 2 * 2 / (high - low + 1)
     else:
-        secondary_random_expected = 1 / (main_population - main_count)
-        reintegro_low, reintegro_high = RANGES[game]["reintegro"]
-        reintegro_random_expected = 1 / (reintegro_high - reintegro_low + 1)
+        secondary_expected = 1 / (population - count)
+        low, high = RANGES[game]["reintegro"]
+        reintegro_expected = 1 / (high - low + 1)
 
     for index in range(start, len(draws)):
-        train = draws.iloc[:index]
+        prediction = build_prediction(game, draws.iloc[:index])
         actual = draws.iloc[index]
-        prediction = build_prediction(game, train)
-        actual_main = {int(actual[column]) for column in main_columns}
+        actual_main = {int(actual[column]) for column in columns}
         main_hits.append(len(set(prediction["main_numbers"]) & actual_main))
-
         if game == "euromillions":
             actual_secondary = {int(actual[column]) for column in SECONDARY_COLUMNS[game]}
             secondary_hits.append(len(set(prediction["secondary_numbers"]) & actual_secondary))
@@ -63,17 +57,17 @@ def run_frequency_backtest(
         "test_draws": holdout,
         "training_draws_min": min_train,
         "main_average_hits": sum(main_hits) / holdout,
-        "main_random_expected_hits": main_random_expected,
+        "main_random_expected_hits": main_expected,
         "main_hit_counts": main_hits,
         "secondary_average_hits": sum(secondary_hits) / holdout,
-        "secondary_random_expected_hits": secondary_random_expected,
+        "secondary_random_expected_hits": secondary_expected,
         "secondary_hit_counts": secondary_hits,
-        "interpretation": "Comparación histórica descriptiva frente al valor esperado aleatorio; no demuestra capacidad predictiva futura.",
+        "interpretation": "Evaluación histórica descriptiva frente al valor esperado aleatorio; no demuestra capacidad predictiva futura.",
     }
     if game == "bonoloto":
         result.update({
             "reintegro_average_hits": sum(reintegro_hits) / holdout,
-            "reintegro_random_expected_hits": reintegro_random_expected,
+            "reintegro_random_expected_hits": reintegro_expected,
             "reintegro_hit_counts": reintegro_hits,
         })
     return result

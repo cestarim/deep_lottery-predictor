@@ -4,6 +4,7 @@ from pathlib import Path
 
 from flask import Flask, jsonify, send_from_directory
 
+from backend.backtest import run_frequency_backtest
 from backend.data_loader import DataValidationError, get_game_summary, load_game
 from backend.predictor import build_prediction
 
@@ -26,20 +27,20 @@ def health_check():
 def lottery_data(game: str):
     if game not in {"euromillions", "bonoloto"}:
         return jsonify({"error": "Juego no soportado. Usa euromillions o bonoloto."}), 404
-
     try:
-        df = load_game(game)
-        latest = df.iloc[-1].to_dict()
+        draws = load_game(game)
+        latest = draws.iloc[-1].to_dict()
         latest["date"] = latest["date"].strftime("%Y-%m-%d")
         return jsonify({
             "game": game,
             "sample_data": True,
-            "summary": get_game_summary(game, df),
+            "summary": get_game_summary(game, draws),
             "latest_draw": latest,
-            "prediction": build_prediction(game, df),
+            "prediction": build_prediction(game, draws),
+            "backtest": run_frequency_backtest(game, draws),
         })
     except (DataValidationError, FileNotFoundError, ValueError) as exc:
-        app.logger.exception("No se pudieron cargar los datos de %s", game)
+        app.logger.warning("No se pudieron cargar o evaluar los datos de %s: %s", game, exc)
         return jsonify({"error": str(exc)}), 500
 
 
