@@ -6,6 +6,7 @@ import pandas as pd
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = BASE_DIR / "data"
+UPLOAD_DIR = BASE_DIR / "data" / "uploads"
 GAME_FILES = {
     "euromillions": DATA_DIR / "euromillions_sample.csv",
     "bonoloto": DATA_DIR / "bonoloto_sample.csv",
@@ -25,39 +26,43 @@ RANGES = {
 
 
 class DataValidationError(ValueError):
-    """Raised when a draw CSV is missing fields or contains invalid values."""
+    """Raised when draw data is missing fields or contains invalid values."""
 
 
-def load_game(game: str) -> pd.DataFrame:
+def dataset_path(game: str) -> Path:
     if game not in GAME_FILES:
         raise ValueError(f"Juego no soportado: {game}")
-    path = GAME_FILES[game]
-    if not path.is_file():
-        raise FileNotFoundError(f"No existe el archivo de datos: {path}")
-    try:
-        df = pd.read_csv(path)
-    except (OSError, pd.errors.ParserError, UnicodeDecodeError) as exc:
-        raise DataValidationError(f"No se pudo leer el CSV de {game}: {exc}") from exc
+    uploaded = UPLOAD_DIR / f"{game}.csv"
+    return uploaded if uploaded.is_file() else GAME_FILES[game]
 
+
+def dataset_source(game: str) -> str:
+    return "uploaded_csv" if dataset_path(game).parent == UPLOAD_DIR else "synthetic_sample"
+
+
+def validate_draws(game: str, df: pd.DataFrame, source_name: str = "CSV") -> pd.DataFrame:
+    if game not in GAME_FILES:
+        raise ValueError(f"Juego no soportado: {game}")
     required = ["date", *MAIN_COLUMNS[game], *SECONDARY_COLUMNS[game]]
     missing = [column for column in required if column not in df.columns]
     if missing:
-        raise DataValidationError(f"Faltan columnas en {path.name}: {', '.join(missing)}")
+        raise DataValidationError(f"Faltan columnas en {source_name}: {', '.join(missing)}")
     if df.empty:
-        raise DataValidationError(f"El archivo {path.name} no contiene sorteos.")
-    df = df[required].copy()
-    df["date"] = pd.to_datetime(df["date"], errors="coerce")
-    if df["date"].isna().any():
+        raise DataValidationError(f"{source_name} no contiene sorteos.")
+
+    result = df[required].copy()
+    result["date"] = pd.to_datetime(result["date"], errors="coerce")
+    if result["date"].isna().any():
         raise DataValidationError("La columna date debe contener fechas válidas (YYYY-MM-DD).")
 
     for column in [*MAIN_COLUMNS[game], *SECONDARY_COLUMNS[game]]:
-        values = pd.to_numeric(df[column], errors="coerce")
+        values = pd.to_numeric(result[column], errors="coerce")
         if values.isna().any() or (values % 1 != 0).any():
             raise DataValidationError(f"La columna {column} debe contener números enteros.")
-        df[column] = values.astype(int)
+        result[column] = values.astype(int)
 
     main_low, main_high = RANGES[game]["main"]
-    for row_index, row in df.iterrows():
+    for row_index, row in result.iterrows():
         main = [int(row[column]) for column in MAIN_COLUMNS[game]]
         if len(set(main)) != len(main):
             raise DataValidationError(f"Fila {row_index + 2}: números principales repetidos.")
@@ -77,7 +82,18 @@ def load_game(game: str) -> pd.DataFrame:
             if not low <= reintegro <= high:
                 raise DataValidationError(f"Fila {row_index + 2}: reintegro fuera de rango.")
 
-    return df.sort_values("date").reset_index(drop=True)
+    return result.sort_values("date").reset_index(drop=True)
+
+
+def load_game(game: str) -> pd.DataFrame:
+    path = dataset_path(game)
+    if not path.is_file():
+        raise FileNotFoundError(f"No existe el archivo de datos: {path}")
+    try:
+        df = pd.read_csv(path)
+    except (OSError, pd.errors.ParserError, UnicodeDecodeError) as exc:
+        raise DataValidationError(f"No se pudo leer el CSV de {game}: {exc}") from exc
+    return validate_draws(game, df, path.name)
 
 
 def get_game_summary(game: str, df: pd.DataFrame | None = None) -> dict:
@@ -87,4 +103,5 @@ def get_game_summary(game: str, df: pd.DataFrame | None = None) -> dict:
         "draw_count": int(len(draws)),
         "latest_date": draws["date"].max().strftime("%Y-%m-%d"),
         "columns": list(draws.columns),
+        "source": dataset_source(game),
     }
