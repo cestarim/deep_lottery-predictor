@@ -4,10 +4,10 @@ Proyecto de analítica experimental para EuroMillions y Bonoloto. El diseño pre
 
 > Los sorteos son aleatorios: el proyecto es experimental y no garantiza predicciones ni premios.
 
-## Estado guardado
+## Estado en construcción.
 
-- Repositorio creado como privado.
-- Hay una hoja de estilos inicial en `frontend/static/css/styles.css`.
+- Repositorio creado seguiendo una 
+- hoja de estilos inicial en `frontend/static/css/styles.css`.
 - El backend, la carga/validación de datos, los modelos y el dashboard conectado todavía están pendientes de implementar.
 - El notebook de Mega Millions del enlace de referencia se usa solo como inspiración metodológica (ventana temporal y LSTM); no se modifica el repositorio de terceros.
 
