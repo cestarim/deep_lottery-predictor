@@ -1,6 +1,6 @@
 # deep_lottery-predictor
 
-Proyecto privado de analítica experimental para EuroMillions y Bonoloto. El diseño previsto combina backend Python para datos, modelos y evaluación, con dashboard HTML/JavaScript para interacción y visualización.
+Proyecto de analítica experimental para EuroMillions y Bonoloto. El diseño previsto combina backend Python para datos, modelos y evaluación, con dashboard HTML/JavaScript para interacción y visualización.
 
 > Los sorteos son aleatorios: el proyecto es experimental y no garantiza predicciones ni premios.
 
