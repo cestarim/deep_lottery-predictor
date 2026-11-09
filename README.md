@@ -1,36 +1,24 @@
-# deep_lottery-predictor
+# Backend
 
-Proyecto de analítica experimental para EuroMillions y Bonoloto. El diseño previsto combina backend Python para datos, modelos y evaluación, con dashboard HTML/JavaScript para interacción y visualización.
+```bash
+pip install -r requirements.txt
+uvicorn app.main:app --reload      # API en http://127.0.0.1:8000/docs
+pytest -q
+```
 
-> Los sorteos son aleatorios: el proyecto es experimental y no garantiza predicciones ni premios.
+## Formato de CSV
+- EuroMillions: `fecha, n_1..n_5, star_1, star_2`
+- Bonoloto: `fecha, n_1..n_6, complementario, reintegro`
 
-## Estado en construcción.
+Se aceptan separadores `,` `;` y tab, y alias como `N1`, `Estrella 1`, `Fecha`.
+Fechas en `YYYY-MM-DD`.
 
-- Repositorio creado seguiendo una 
-- hoja de estilos inicial en `frontend/static/css/styles.css`.
-- El backend, la carga/validación de datos, los modelos y el dashboard conectado todavía están pendientes de implementar.
-- El notebook de Mega Millions del enlace de referencia se usa solo como inspiración metodológica (ventana temporal y LSTM); no se modifica el repositorio de terceros.
-
-## Alcance acordado
-
-- EuroMillions: fecha `YYYY-MM-DD`, cinco números principales y dos estrellas.
-- Bonoloto: fecha, seis números principales, complementario y reintegro. Confirmar nombres/rangos con el CSV o la fuente de datos antes de implementar.
-- API/backend Python para carga, validación, análisis, entrenamiento y evaluación temporal.
-- Interfaz HTML/CSS/JavaScript para cargar datos, configurar modelos y visualizar resultados.
-- Modelos a comparar: LSTM, GRU, Transformer y CNN; opciones configurables de dropout y early stopping.
-- Evaluación mediante backtesting temporal y comparación con una referencia aleatoria.
-
-## Próximos pasos para retomar
-
-1. Preparar los CSV reales de EuroMillions y Bonoloto.
-2. Confirmar los nombres de columnas y rangos.
-3. Implementar la API.
-4. Montar el dashboard.
-5. Añadir los modelos y el backtesting.
-6. Probar con datos reales y ajustar.
-
-Al retomar, ayudar a corregir errores y completar los archivos necesarios manteniendo la continuidad del proyecto. El siguiente bloque de trabajo puede incluir la estructura exacta de la API, endpoints de carga y predicción, preprocesado para secuencias y HTML conectado al backend, con el objetivo de dejarlo operativo.
-
-## Referencia
-
-Notebook Mega Millions: `Megamillions_Balles_7_window_11_4_2023_LSTM.ipynb` en el repositorio de Polanitz enlazado durante la conversación.
+## Endpoints
+- `GET /games`: juegos, columnas y rangos.
+- `POST /games/{key}/upload`: sube y valida el CSV (informe de errores y filas descartadas).
+- `GET /games/{key}/stats`: frecuencias por valor.
+- `GET /games/{key}/dataset?window=10`: forma de los tensores y partición temporal.
+- `POST /games/{key}/backtest`: backtest walk-forward frente a azar (z-score).
+- `POST /games/{key}/train?kind=lstm|gru|cnn|transformer&window=10&epochs=30&dropout=0.2&patience=5`: entrena y evalúa en test frente al azar (z hipergeométrico exacto).
+- `GET /games/{key}/predict`: puntuaciones del siguiente sorteo con el último modelo (no es una predicción fiable).
+- `POST /games/{key}/walkforward?kind=lstm&folds=3&gap=5&test_frac=0.3`: walk-forward con gap; agrega todos los folds y contrasta frente al azar (test binomial exacto, IC de Wilson, h de Cohen).

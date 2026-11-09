@@ -2,8 +2,12 @@
 from __future__ import annotations
 
 import pandas as pd
+from pathlib import Path
+
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from .backtest import compare_with_random, frequency_predictor
 from .data import load_csv
@@ -15,6 +19,8 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 
 MAX_BYTES = 20 * 1024 * 1024
 _STORE: dict[str, pd.DataFrame] = {}  # datos validados en memoria, por juego
+
+_MODELS: dict[str, dict] = {}  # último modelo entrenado por juego
 
 DISCLAIMER = "Los sorteos son aleatorios; ningún resultado de este proyecto garantiza premios."
 
@@ -97,3 +103,79 @@ def run_backtest(key: str, lookback: int = 200, hot: bool = True,
     res = compare_with_random(df, game, frequency_predictor(game, lookback, hot), start, n_random)
     res["disclaimer"] = DISCLAIMER
     return res
+
+
+@app.post("/games/{key}/train")
+def train(key: str, kind: str = "lstm", window: int = 10, epochs: int = 30, dropout: float = 0.2,
+          patience: int = 5, hidden: int = 64, lr: float = 1e-3,
+          train: float = 0.7, val: float = 0.15, seed: int = 0):
+    """Entrena un modelo (síncrono) y lo evalúa en el tramo de test frente al azar."""
+    game, df = _game(key), _data(key)
+    try:
+        from .models import KINDS
+        from .train import TrainConfig, train_model
+    except ImportError:
+        raise HTTPException(501, "PyTorch no está instalado: pip install torch")
+    if kind.lower() not in KINDS:
+        raise HTTPException(422, f"Modelo desconocido. Opciones: {list(KINDS)}")
+    if not (1 <= window <= 100 and 1 <= epochs <= 200 and 0 <= dropout < 1 and 4 <= hidden <= 256):
+        raise HTTPException(422, "Parámetros fuera de rango (window 1-100, epochs 1-200, dropout 0-1, hidden 4-256).")
+    cfg = TrainConfig(kind=kind.lower(), window=window, epochs=epochs, dropout=dropout,
+                      patience=patience, hidden=hidden, lr=lr, train_frac=train, val_frac=val, seed=seed)
+    try:
+        model, report = train_model(df, game, cfg)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    _MODELS[key] = {"model": model, "window": window, "kind": cfg.kind}
+    report["disclaimer"] = DISCLAIMER
+    return report
+
+
+@app.post("/games/{key}/walkforward")
+def walkforward(key: str, kind: str = "lstm", window: int = 10, epochs: int = 20, dropout: float = 0.2,
+                patience: int = 4, hidden: int = 64, folds: int = 3, gap: int = 0,
+                test_frac: float = 0.3, seed: int = 0):
+    """Walk-forward con gap: reentrena por fold y contrasta el agregado frente al azar."""
+    game, df = _game(key), _data(key)
+    try:
+        from .models import KINDS
+        from .train import TrainConfig, walk_forward
+    except ImportError:
+        raise HTTPException(501, "PyTorch no está instalado: pip install torch")
+    if kind.lower() not in KINDS:
+        raise HTTPException(422, f"Modelo desconocido. Opciones: {list(KINDS)}")
+    if not (1 <= window <= 100 and 1 <= epochs <= 200 and 1 <= folds <= 10 and 0 <= gap <= 200):
+        raise HTTPException(422, "Parámetros fuera de rango.")
+    cfg = TrainConfig(kind=kind.lower(), window=window, epochs=epochs, dropout=dropout,
+                      patience=patience, hidden=hidden, seed=seed)
+    try:
+        res = walk_forward(df, game, cfg, folds, gap, test_frac)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    res["disclaimer"] = DISCLAIMER
+    return res
+
+
+@app.get("/games/{key}/predict")
+def predict(key: str):
+    """Puntuaciones del siguiente sorteo con el último modelo entrenado."""
+    game, df = _game(key), _data(key)
+    if key not in _MODELS:
+        raise HTTPException(409, f"No hay modelo entrenado para {key}. Usa POST /games/{key}/train.")
+    from .train import predict_next
+    m = _MODELS[key]
+    try:
+        res = predict_next(m["model"], df, game, m["window"])
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    return {"model": m["kind"], "window": m["window"], **res, "disclaimer": DISCLAIMER}
+
+
+# --- Dashboard (frontend/ en la raíz del repo), servido en el mismo origen ---
+_FRONTEND = Path(__file__).resolve().parents[2] / "frontend"
+if (_FRONTEND / "index.html").exists():
+    app.mount("/static", StaticFiles(directory=_FRONTEND / "static"), name="static")
+
+    @app.get("/", include_in_schema=False)
+    def index():
+        return FileResponse(_FRONTEND / "index.html")

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>deep_lottery-predictor</title>
+  <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+  <main class="container">
+    <header>
+      <h1>deep_lottery-predictor</h1>
+      <p class="banner">Los sorteos son aleatorios: este panel es experimental y no garantiza predicciones ni premios.</p>
+    </header>
+
+    <section class="controls" aria-label="Juego">
+      <label for="game">Juego
+        <select id="game"></select>
+      </label>
+    </section>
+
+    <div class="grid two">
+      <section class="card" aria-labelledby="h-data">
+        <h2 id="h-data">1. Datos</h2>
+        <p class="subtitle" id="format-hint"></p>
+        <div class="row">
+          <label for="file">Archivo CSV
+            <input type="file" id="file" accept=".csv,text/csv,.txt">
+          </label>
+          <button id="upload" type="button">Cargar y validar</button>
+        </div>
+        <div id="upload-status" class="status" role="status" aria-live="polite"></div>
+      </section>
+
+      <section class="card" aria-labelledby="h-cfg">
+        <h2 id="h-cfg">2. Configuración</h2>
+        <div class="row">
+          <label for="window">Ventana (sorteos)
+            <input type="number" id="window" value="10" min="1" max="100" style="width:120px">
+          </label>
+          <label for="train">Entrenamiento %
+            <input type="number" id="train" value="70" min="10" max="90" style="width:110px">
+          </label>
+          <label for="val">Validación %
+            <input type="number" id="val" value="15" min="0" max="40" style="width:110px">
+          </label>
+          <button id="dataset" type="button" disabled>Ver partición</button>
+        </div>
+        <div id="dataset-out" class="status" role="status" aria-live="polite"></div>
+
+      </section>
+    </div>
+
+    <section class="card full" aria-labelledby="h-stats">
+      <h2 id="h-stats">3. Frecuencias</h2>
+      <div class="row">
+        <label for="last">Últimos N sorteos (vacío = todos)
+          <input type="number" id="last" min="10" placeholder="todos" style="width:150px">
+        </label>
+        <button id="stats" type="button" disabled>Actualizar</button>
+      </div>
+      <div id="stats-out"></div>
+    </section>
+
+    <section class="card full" aria-labelledby="h-bt">
+      <h2 id="h-bt">4. Backtesting frente al azar</h2>
+      <p class="subtitle">Walk-forward: cada sorteo del tramo de test se predice solo con el historial anterior. Referencia: predictor de frecuencias.</p>
+      <div class="row">
+        <label for="lookback">Historial usado (sorteos)
+          <input type="number" id="lookback" value="200" min="10" style="width:130px">
+        </label>
+        <label for="mode">Estrategia
+          <select id="mode"><option value="true">Más frecuentes (hot)</option><option value="false">Menos frecuentes (cold)</option></select>
+        </label>
+        <label for="testfrac">Test %
+          <input type="number" id="testfrac" value="20" min="5" max="50" style="width:100px">
+        </label>
+        <button id="backtest" type="button" disabled>Ejecutar backtest</button>
+      </div>
+      <div id="bt-out"></div>
+    </section>
+
+    <section class="card full" aria-labelledby="h-model">
+      <h2 id="h-model">5. Modelo</h2>
+      <p class="subtitle">Se entrena en el tramo cronológico de entrenamiento (ventana y particiones de «2. Configuración»), se detiene pronto según la validación y se evalúa en el tramo de test frente al azar (z exacto, distribución hipergeométrica).</p>
+      <div class="row">
+        <label for="kind">Tipo
+          <select id="kind"><option value="lstm">LSTM</option><option value="gru">GRU</option><option value="transformer">Transformer</option><option value="cnn">CNN</option></select>
+        </label>
+        <label for="epochs">Épocas <input type="number" id="epochs" value="30" min="1" max="200" style="width:90px"></label>
+        <label for="dropout">Dropout <input type="number" id="dropout" value="0.2" min="0" max="0.9" step="0.05" style="width:90px"></label>
+        <label for="patience">Early stopping <input type="number" id="patience" value="5" min="0" max="50" style="width:100px"></label>
+        <button id="train-btn" type="button" disabled>Entrenar</button>
+      </div>
+      <div id="train-out"></div>
+
+      <h3 class="chart-title" style="margin-top:22px">Walk-forward con gap</h3>
+      <p class="subtitle">Reentrena en cada fold solo con sorteos anteriores al bloque de test menos el gap, y contrasta el total agregado frente al azar (test binomial exacto, IC de Wilson, h de Cohen). Usa el tipo, ventana, épocas, dropout y early stopping de arriba.</p>
+      <div class="row">
+        <label for="folds">Folds <input type="number" id="folds" value="3" min="1" max="10" style="width:80px"></label>
+        <label for="gap">Gap (sorteos) <input type="number" id="gap" value="5" min="0" max="200" style="width:100px"></label>
+        <label for="wftest">Test % <input type="number" id="wftest" value="30" min="5" max="60" style="width:90px"></label>
+        <button id="wf-btn" type="button" disabled>Ejecutar walk-forward</button>
+      </div>
+      <div id="wf-out"></div>
+    </section>
+  </main>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
